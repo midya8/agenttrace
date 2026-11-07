@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from html import escape
 from typing import Iterable
+import xml.etree.ElementTree as ET
 
 from .analysis import AnalysisResult
 from .models import TraceStep
@@ -66,3 +67,54 @@ def render_report(steps: Iterable[TraceStep], result: AnalysisResult) -> str:
 <h2>Validation and gates</h2><section class="panel"><ul>{issue_items}</ul></section>
 <h2>Step timeline</h2><section class="panel timeline">{''.join(timeline_parts)}</section>
 </main></body></html>"""
+
+
+def render_junit(result: AnalysisResult) -> str:
+    """Render analysis results as a JUnit XML suite for CI test viewers."""
+    checks = 1 + len(result.runs)
+    failures = len([run for run in result.runs if run.errors])
+    if result.issues or result.gate_failures:
+        failures += 1
+    total_seconds = sum(run.duration_ms for run in result.runs) / 1000.0
+    suite = ET.Element(
+        "testsuite",
+        {
+            "name": "agenttrace",
+            "tests": str(checks),
+            "failures": str(failures),
+            "errors": "0",
+            "time": f"{total_seconds:.6f}",
+        },
+    )
+    gate_case = ET.SubElement(
+        suite,
+        "testcase",
+        {"classname": "agenttrace", "name": "analysis validation and gates", "time": "0.000000"},
+    )
+    if result.issues or result.gate_failures:
+        detail = "\n".join((*result.issues, *result.gate_failures))
+        element = ET.SubElement(gate_case, "failure", {"message": "analysis validation or gates failed"})
+        element.text = detail
+    for run in result.runs:
+        testcase = ET.SubElement(
+            suite,
+            "testcase",
+            {
+                "classname": "agenttrace.run",
+                "name": run.run_id,
+                "time": f"{run.duration_ms / 1000.0:.6f}",
+            },
+        )
+        if run.errors:
+            element = ET.SubElement(
+                testcase,
+                "failure",
+                {"message": f"run has {run.errors} failed/error step(s)"},
+            )
+            element.text = (
+                f"steps={run.steps}; errors={run.errors}; tool_calls={run.tool_calls}; "
+                f"llm_calls={run.llm_calls}; max_repeat={run.max_repeat}; "
+                f"p95_step_ms={run.p95_step_ms:.3f}; cost_usd={run.cost_usd:.8f}"
+            )
+    ET.indent(suite, space="  ")
+    return "<?xml version='1.0' encoding='utf-8'?>\n" + ET.tostring(suite, encoding="unicode") + "\n"
