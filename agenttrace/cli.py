@@ -8,7 +8,7 @@ import sys
 from .analysis import analyze_steps
 from .compare import compare_results
 from .parser import load_trace
-from .report import render_report
+from .report import render_junit, render_report
 
 
 def _load(path: str):
@@ -48,6 +48,8 @@ def cmd_analyze(args) -> int:
     payload = result.to_dict()
     if args.out:
         Path(args.out).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if args.junit:
+        Path(args.junit).write_text(render_junit(result), encoding="utf-8")
     totals = payload["totals"]
     print(
         f"{totals['runs']} run(s), {totals['steps']} steps, {totals['errors']} errors, "
@@ -132,6 +134,7 @@ def build_parser() -> argparse.ArgumentParser:
     analyze = sub.add_parser("analyze", help="summarize runs and enforce gates")
     analyze.add_argument("trace")
     analyze.add_argument("--json", dest="out", help="write analysis JSON")
+    analyze.add_argument("--junit", help="write analysis results as JUnit XML")
     gates(analyze)
     analyze.set_defaults(func=cmd_analyze)
     report = sub.add_parser("report", help="render a standalone HTML report")
