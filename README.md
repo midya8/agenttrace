@@ -2,7 +2,7 @@
 
 Local-first validation, analysis, and CI-friendly reporting for AI agent execution traces.
 
-AgentTrace reads JSONL agent traces, checks their structure, summarizes every run, detects repeated tool/action loops, tracks failures, latency, tokens and cost, enforces CI-friendly gates, and renders standalone HTML, JUnit XML, and Markdown job-summary reports. It is dependency-free and works offline, so it can inspect traces from local agents, test fixtures, internal tools, or hosted model adapters without sending prompts or outputs anywhere.
+AgentTrace reads JSONL agent traces, checks their structure, summarizes every run, detects repeated tool/action loops, tracks failures, latency, tokens and cost, enforces CI-friendly gates, and renders standalone HTML, JUnit XML, SARIF and Markdown job-summary reports. It is dependency-free and works offline, so it can inspect traces from local agents, test fixtures, internal tools, or hosted model adapters without sending prompts or outputs anywhere.
 
 ## Why
 
@@ -14,7 +14,7 @@ Agent frameworks are good at showing a friendly final answer and bad at preservi
 - errors, p95 step latency, run depth, token totals and cost are explicit;
 - thresholds turn trace review into a scriptable quality gate;
 - baseline/candidate comparison gates catch new errors, runaway steps, loops, p95 latency and cost regressions;
-- escaped HTML reports make the run reviewable without a server, JavaScript bundle, or external service; JUnit XML exposes the same quality gate to CI test viewers, while Markdown fits native CI job summaries.
+- escaped HTML reports make the run reviewable without a server, JavaScript bundle, or external service; JUnit XML exposes the same quality gate to CI test viewers, SARIF maps validation and gate failures to code-scanning tools, and Markdown fits native CI job summaries.
 
 ## Trace format
 
@@ -71,7 +71,7 @@ Comparison output includes absolute and percentage deltas for runs, steps, error
 
 ## Offline demo
 
-The demo uses a fixed local trace fixture. It demonstrates validation, analysis, gates, HTML reporting, JUnit XML and Markdown generation without any model/API call:
+The demo uses a fixed local trace fixture. It demonstrates validation, analysis, gates, HTML reporting, JUnit XML, SARIF and Markdown generation without any model/API call:
 
 ```bash
 bash examples/demo.sh
@@ -93,5 +93,5 @@ The test suite runs fully offline. CI runs the same checks on Python 3.10 throug
 - **Portable input:** JSONL is easy for agents and test harnesses to append and for Unix tools to inspect.
 - **Validation first:** malformed events, duplicate step IDs, unknown parents, negative numbers, unknown event types and bad timestamps are reported before analysis is trusted.
 - **Loop detection:** repeated signatures use event kind, name and normalized input payload, so retries with changed arguments do not count as the same loop.
-- **Reviewable output:** the HTML report escapes untrusted trace payloads, needs no JavaScript, and can be archived with the run; JUnit XML gives CI a conventional test report; Markdown gives the same status a native job-summary format.
+- **Reviewable output:** the HTML report escapes untrusted trace payloads, needs no JavaScript, and can be archived with the run; JUnit XML gives CI a conventional test report; SARIF exposes validation and gate findings to code-scanning tools; Markdown gives the same status a native job-summary format.
 - **Scriptable gates:** meaningful exit codes let CI fail on agent errors, loops, high latency, high cost, oversized runs or regressions against a saved baseline.
