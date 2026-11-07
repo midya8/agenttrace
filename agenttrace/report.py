@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 from html import escape
-from typing import Iterable
+import json
+from typing import Any, Iterable
 import xml.etree.ElementTree as ET
 
 from .analysis import AnalysisResult
@@ -122,6 +123,86 @@ def render_markdown(result: AnalysisResult) -> str:
     else:
         lines.append("- No validation or gate issues.")
     return "\n".join(lines) + "\n"
+
+
+def render_sarif(result: AnalysisResult, *, version: str, trace_path: str) -> str:
+    """Render validation and gate findings as SARIF 2.1.0."""
+    rules: dict[str, dict[str, Any]] = {
+        "AGENTTRACE_VALIDATION": {
+            "id": "AGENTTRACE_VALIDATION",
+            "name": "AgentTraceValidation",
+            "shortDescription": {"text": "trace structure validation issue"},
+            "defaultConfiguration": {"level": "error"},
+        },
+        "AGENTTRACE_GATE": {
+            "id": "AGENTTRACE_GATE",
+            "name": "AgentTraceGate",
+            "shortDescription": {"text": "configured trace quality gate failed"},
+            "defaultConfiguration": {"level": "error"},
+        },
+        "AGENTTRACE_RUN_ERRORS": {
+            "id": "AGENTTRACE_RUN_ERRORS",
+            "name": "AgentTraceRunErrors",
+            "shortDescription": {"text": "agent run contains failed or error steps"},
+            "defaultConfiguration": {"level": "warning"},
+        },
+    }
+    results: list[dict[str, Any]] = []
+
+    def add(rule_id: str, level: str, message: str, run_id: str | None = None) -> None:
+        properties: dict[str, Any] = {}
+        if run_id is not None:
+            properties["run_id"] = run_id
+        results.append(
+            {
+                "ruleId": rule_id,
+                "level": level,
+                "message": {"text": message},
+                "locations": [
+                    {
+                        "physicalLocation": {
+                            "artifactLocation": {"uri": trace_path.replace("\\", "/")},
+                            "region": {"startLine": 1},
+                        }
+                    }
+                ],
+                "properties": properties,
+            }
+        )
+
+    for issue in result.issues:
+        add("AGENTTRACE_VALIDATION", "error", issue)
+    for failure in result.gate_failures:
+        run_id = failure.split(":", 1)[0].removeprefix("run ") if failure.startswith("run ") else None
+        add("AGENTTRACE_GATE", "error", failure, run_id)
+    for run in result.runs:
+        if run.errors:
+            add(
+                "AGENTTRACE_RUN_ERRORS",
+                "warning",
+                f"run {run.run_id}: {run.errors} failed/error step(s)",
+                run.run_id,
+            )
+    used_rules = [rules[key] for key in sorted(rules) if any(item["ruleId"] == key for item in results)]
+    payload = {
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "AgentTrace",
+                        "version": version,
+                        "informationUri": "https://github.com/midya8/agenttrace",
+                        "rules": used_rules,
+                    }
+                },
+                "results": results,
+                "invocations": [{"executionSuccessful": not result.issues and not result.gate_failures}],
+            }
+        ],
+    }
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
 def render_junit(result: AnalysisResult) -> str:
