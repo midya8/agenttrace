@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 from agenttrace.cli import main
 from agenttrace.report import render_report
@@ -30,8 +31,14 @@ class CliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             trace = self.write(tmp, '{"run_id":"r","step":"a","kind":"llm","name":"planner"}\n')
             out = Path(tmp) / "analysis.json"
-            self.assertEqual(0, main(["analyze", trace, "--json", str(out)]))
+            junit = Path(tmp) / "analysis.xml"
+            self.assertEqual(0, main(["analyze", trace, "--json", str(out), "--junit", str(junit)]))
             payload = json.loads(out.read_text(encoding="utf-8"))
+            root = ET.parse(junit).getroot()
+            self.assertEqual(root.tag, "testsuite")
+            self.assertEqual(root.attrib["tests"], "2")
+            self.assertEqual(root.attrib["failures"], "0")
+            self.assertEqual(len(root.findall("testcase")), 2)
             self.assertTrue(payload["ok"])
             self.assertEqual(1, payload["totals"]["steps"])
 
