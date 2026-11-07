@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 
 from .analysis import analyze_steps
+from .compare import compare_results
 from .parser import load_trace
 from .report import render_report
 
@@ -70,6 +71,50 @@ def cmd_report(args) -> int:
     return 0 if result.ok and not data.issues else 1
 
 
+def _fmt_metric(metric: str, value: float) -> str:
+    if metric == "cost_usd":
+        return f"${value:.6f}"
+    if metric == "max_p95_ms":
+        return f"{value:.3f} ms"
+    return f"{value:g}"
+
+
+def cmd_compare(args) -> int:
+    baseline_data = _load(args.baseline)
+    candidate_data = _load(args.candidate)
+    baseline = analyze_steps(baseline_data.steps, baseline_data.issues)
+    candidate = analyze_steps(candidate_data.steps, candidate_data.issues)
+    result = compare_results(
+        baseline,
+        candidate,
+        max_new_errors=args.max_new_errors,
+        max_step_increase_pct=args.max_step_increase_pct,
+        max_p95_increase_ms=args.max_p95_increase_ms,
+        max_cost_increase_pct=args.max_cost_increase_pct,
+        max_repeat_increase=args.max_repeat_increase,
+    )
+    payload = result.to_dict()
+    if args.out:
+        Path(args.out).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    for delta in result.deltas:
+        pct = "n/a" if delta.delta_pct is None else f"{delta.delta_pct:+.3f}%"
+        print(
+            f"{delta.metric}: {_fmt_metric(delta.metric, delta.baseline)} -> "
+            f"{_fmt_metric(delta.metric, delta.candidate)} "
+            f"({_fmt_metric(delta.metric, delta.delta)}, {pct})"
+        )
+    for issue in baseline.issues:
+        print(f"WARN baseline: {issue}")
+    for issue in candidate.issues:
+        print(f"WARN candidate: {issue}")
+    if result.gate_failures:
+        for failure in result.gate_failures:
+            print(f"FAIL {failure}")
+        return 1
+    print("OK comparison gates passed")
+    return 0 if not baseline.issues and not candidate.issues else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="agenttrace", description="Validate, analyze and report AI agent traces.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -94,6 +139,17 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument("--out", required=True)
     gates(report)
     report.set_defaults(func=cmd_report)
+
+    compare = sub.add_parser("compare", help="compare two traces and gate regressions")
+    compare.add_argument("baseline")
+    compare.add_argument("candidate")
+    compare.add_argument("--json", dest="out", help="write comparison JSON")
+    compare.add_argument("--max-new-errors", type=int, default=0, help="allowed increase in failed/error steps")
+    compare.add_argument("--max-step-increase-pct", type=float, help="allowed step-count increase percentage")
+    compare.add_argument("--max-p95-increase-ms", type=float, help="allowed increase in max p95 step latency")
+    compare.add_argument("--max-cost-increase-pct", type=float, help="allowed cost increase percentage")
+    compare.add_argument("--max-repeat-increase", type=int, help="allowed increase in max repeated step signature count")
+    compare.set_defaults(func=cmd_compare)
     return parser
 
 
