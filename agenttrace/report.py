@@ -69,6 +69,61 @@ def render_report(steps: Iterable[TraceStep], result: AnalysisResult) -> str:
 </main></body></html>"""
 
 
+def _md_cell(value: object) -> str:
+    return str(value).replace("|", "\\|").replace("\r", " ").replace("\n", " ")
+
+
+def render_markdown(result: AnalysisResult) -> str:
+    """Render a concise Markdown summary suitable for CI job summaries."""
+    totals = result.to_dict()["totals"]
+    status = "PASS" if result.ok and not result.issues else "FAIL"
+    lines = [
+        "# AgentTrace analysis",
+        "",
+        f"**Status:** {status}",
+        "",
+        "| Metric | Value |",
+        "| --- | ---: |",
+        f"| Runs | {totals['runs']} |",
+        f"| Steps | {totals['steps']} |",
+        f"| Errors | {totals['errors']} |",
+        f"| Tool calls | {totals['tool_calls']} |",
+        f"| LLM calls | {totals['llm_calls']} |",
+        f"| Input tokens | {totals['tokens_input']} |",
+        f"| Output tokens | {totals['tokens_output']} |",
+        f"| Cost | ${totals['cost_usd']:.6f} |",
+        "",
+        "## Runs",
+        "",
+        "| Run | Steps | Errors | Tool calls | LLM calls | Max repeat | Max depth | p95 step | Tokens | Cost |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for run in result.runs:
+        lines.append(
+            "| " + " | ".join(
+                [
+                    _md_cell(run.run_id),
+                    str(run.steps),
+                    str(run.errors),
+                    str(run.tool_calls),
+                    str(run.llm_calls),
+                    str(run.max_repeat),
+                    str(run.max_depth),
+                    f"{run.p95_step_ms:.1f} ms",
+                    str(run.tokens_input + run.tokens_output),
+                    f"${run.cost_usd:.6f}",
+                ]
+            ) + " |"
+        )
+    lines.extend(["", "## Validation and gates", ""])
+    issues = (*result.issues, *result.gate_failures)
+    if issues:
+        lines.extend(f"- {_md_cell(issue)}" for issue in issues)
+    else:
+        lines.append("- No validation or gate issues.")
+    return "\n".join(lines) + "\n"
+
+
 def render_junit(result: AnalysisResult) -> str:
     """Render analysis results as a JUnit XML suite for CI test viewers."""
     checks = 1 + len(result.runs)
