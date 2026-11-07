@@ -6,7 +6,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from agenttrace.cli import main
-from agenttrace.report import render_report
+from agenttrace.report import render_markdown, render_report
 from agenttrace.parser import parse_lines
 from agenttrace.analysis import analyze_steps
 
@@ -32,13 +32,18 @@ class CliTests(unittest.TestCase):
             trace = self.write(tmp, '{"run_id":"r","step":"a","kind":"llm","name":"planner"}\n')
             out = Path(tmp) / "analysis.json"
             junit = Path(tmp) / "analysis.xml"
-            self.assertEqual(0, main(["analyze", trace, "--json", str(out), "--junit", str(junit)]))
+            markdown = Path(tmp) / "analysis.md"
+            self.assertEqual(0, main(["analyze", trace, "--json", str(out), "--junit", str(junit), "--markdown", str(markdown)]))
             payload = json.loads(out.read_text(encoding="utf-8"))
             root = ET.parse(junit).getroot()
+            summary = markdown.read_text(encoding="utf-8")
             self.assertEqual(root.tag, "testsuite")
             self.assertEqual(root.attrib["tests"], "2")
             self.assertEqual(root.attrib["failures"], "0")
             self.assertEqual(len(root.findall("testcase")), 2)
+            self.assertIn("# AgentTrace analysis", summary)
+            self.assertIn("**Status:** PASS", summary)
+            self.assertIn("| Runs | 1 |", summary)
             self.assertTrue(payload["ok"])
             self.assertEqual(1, payload["totals"]["steps"])
 
@@ -60,6 +65,13 @@ class CliTests(unittest.TestCase):
     def test_missing_file_is_system_exit(self):
         with self.assertRaises(SystemExit):
             main(["validate", "/definitely/not/here.jsonl"])
+
+    def test_markdown_escapes_table_cells(self):
+        data = parse_lines(['{"run_id":"run|one","step":"a","kind":"tool","name":"search","duration_ms":4}\n'])
+        result = analyze_steps(data.steps, data.issues)
+        markdown = render_markdown(result)
+        self.assertIn("run\\|one", markdown)
+        self.assertIn("# AgentTrace analysis", markdown)
 
     def test_report_includes_run_table(self):
         data = parse_lines(['{"run_id":"r","step":"a","kind":"tool","name":"search","duration_ms":4}\n'])
