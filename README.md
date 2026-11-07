@@ -13,6 +13,7 @@ Agent frameworks are good at showing a friendly final answer and bad at preservi
 - loops and repeated calls are detected from kind, name and normalized input;
 - errors, p95 step latency, run depth, token totals and cost are explicit;
 - thresholds turn trace review into a scriptable quality gate;
+- baseline/candidate comparison gates catch new errors, runaway steps, loops, p95 latency and cost regressions;
 - escaped HTML reports make the run reviewable without a server, JavaScript bundle, or external service.
 
 ## Trace format
@@ -56,6 +57,18 @@ Render a standalone report:
 python3 -m agenttrace report examples/trace.jsonl --out report.html
 ```
 
+Compare a candidate run against a saved baseline and fail on regressions:
+
+```bash
+python3 -m agenttrace compare examples/trace.jsonl examples/trace_candidate.jsonl \
+  --max-new-errors 0 \
+  --max-p95-increase-ms 100 \
+  --max-cost-increase-pct 50 \
+  --json compare.json
+```
+
+Comparison output includes absolute and percentage deltas for runs, steps, errors, tool and LLM calls, repeated signatures, p95 latency, tokens and cost. It exits 1 when a configured regression gate fails, so it can protect an agent change in CI without calling a model.
+
 ## Offline demo
 
 The demo uses a fixed local trace fixture. It demonstrates validation, analysis, gates and report rendering without any model/API call:
@@ -64,7 +77,7 @@ The demo uses a fixed local trace fixture. It demonstrates validation, analysis,
 bash examples/demo.sh
 ```
 
-The fixture currently covers a five-step agent run with planning, two tool calls, writing and a final observation. Its timing and cost numbers are fixture data, not evidence about a real model.
+The fixtures currently cover a five-step baseline agent run and a slightly slower candidate run with planning, two tool calls, writing and a final observation. Their timing and cost numbers are fixture data, not evidence about a real model.
 
 ## Development
 
@@ -81,4 +94,4 @@ The test suite runs fully offline. CI runs the same checks on Python 3.10 throug
 - **Validation first:** malformed events, duplicate step IDs, unknown parents, negative numbers, unknown event types and bad timestamps are reported before analysis is trusted.
 - **Loop detection:** repeated signatures use event kind, name and normalized input payload, so retries with changed arguments do not count as the same loop.
 - **Reviewable output:** the report escapes untrusted trace payloads, needs no JavaScript, and can be archived with the run.
-- **Scriptable gates:** meaningful exit codes let CI fail on agent errors, loops, high latency, high cost or oversized runs.
+- **Scriptable gates:** meaningful exit codes let CI fail on agent errors, loops, high latency, high cost, oversized runs or regressions against a saved baseline.

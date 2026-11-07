@@ -6,4 +6,5 @@ mkdir -p "$out_dir"
 python3 -m agenttrace validate examples/trace.jsonl
 python3 -m agenttrace analyze examples/trace.jsonl --json "$out_dir/analysis.json" --fail-on-error --max-loop-repeat 3 --max-p95-ms 500 --max-cost-usd 0.01 --max-steps 10
 python3 -m agenttrace report examples/trace.jsonl --out "$out_dir/report.html" --fail-on-error --max-loop-repeat 3 --max-p95-ms 500 --max-cost-usd 0.01 --max-steps 10
+python3 -m agenttrace compare examples/trace.jsonl examples/trace_candidate.jsonl --json "$out_dir/compare.json" --max-new-errors 0 --max-p95-increase-ms 100 --max-cost-increase-pct 50
 printf 'demo artifacts: %s\n' "$out_dir"
