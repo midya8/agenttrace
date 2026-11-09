@@ -62,7 +62,7 @@ class AnalysisResult:
 
     @property
     def ok(self) -> bool:
-        return not self.gate_failures
+        return not self.gate_failures and not self.issues
 
     def to_dict(self) -> dict[str, object]:
         totals = {
@@ -86,20 +86,9 @@ class AnalysisResult:
 
 
 def _depths(steps: Iterable[TraceStep]) -> int:
-    by_id = {step.step: step for step in steps}
-    memo: dict[str, int] = {}
-
-    def depth(step: TraceStep, visiting: set[str] | None = None) -> int:
-        if step.step in memo:
-            return memo[step.step]
-        visiting = visiting or set()
-        if step.step in visiting or not step.parent or step.parent not in by_id:
-            memo[step.step] = 1
-        else:
-            memo[step.step] = 1 + depth(by_id[step.parent], visiting | {step.step})
-        return memo[step.step]
-
-    return max((depth(step) for step in steps), default=0)
+    from .graph import graph_evidence
+    graphs,_=graph_evidence(steps)
+    return max((g['max_depth'] for g in graphs.values() if g is not None),default=0)
 
 
 def analyze_steps(
@@ -112,13 +101,24 @@ def analyze_steps(
     max_cost_usd: float | None = None,
     max_steps: int | None = None,
 ) -> AnalysisResult:
+    import math
+    for key,value in [('max_p95_ms',max_p95_ms),('max_cost_usd',max_cost_usd)]:
+        if value is not None and (isinstance(value,bool) or not isinstance(value,(int,float)) or not math.isfinite(value) or value<0):
+            raise ValueError(key+' must be finite and nonnegative')
+    for key,value in [('max_loop_repeat',max_loop_repeat),('max_steps',max_steps)]:
+        if value is not None and (isinstance(value,bool) or not isinstance(value,int) or value < (-1 if key=='max_loop_repeat' else 0)):
+            raise ValueError(key+' must be an integer in range')
+    steps=list(steps)
+    from .graph import graph_evidence
+    _,graph_issues=graph_evidence(steps)
+    parser_issues=list(dict.fromkeys([*parser_issues,*graph_issues]))
     grouped: dict[str, list[TraceStep]] = defaultdict(list)
     for step in steps:
         grouped[step.run_id].append(step)
     runs: list[RunAnalysis] = []
     failures: list[str] = []
     for run_id in sorted(grouped):
-        run_steps = sorted(grouped[run_id], key=lambda item: (item.started or item.started is not None, item.sequence))
+        run_steps = sorted(grouped[run_id], key=lambda item: (item.started is None, item.started.timestamp() if item.started is not None else 0, item.sequence))
         signatures = Counter(step.signature for step in run_steps)
         repeated = [count for count in signatures.values() if count > 1]
         errors = sum(step.failed for step in run_steps)
