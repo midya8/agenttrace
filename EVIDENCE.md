@@ -29,7 +29,7 @@ Original parser accepted nonfinite known numbers and JSON constants, mixed missi
 
 Comparison percentage change from zero is undefined/null, replacing nonstandard Infinity JSON. Positive increase still fails a configured percent bound. Gate defaults and valid-trace metrics are preserved; analysis/compare CLI choices are not inferred from the inspector. Invalid numeric gate options fail rather than silently disabling checks. Native input validation is not a direct-TraceStep object sanitizer.
 
-`docs/original-sha256.json` fingerprints original33tests, baseline/candidate JSONL, demo and README. README is archived as original-readme.md. The original baseline source, original CLI analysis and original HTML remain visible and are reproduced by the updated analyzer/renderer on the original valid fixture. The original demo remains unchanged. No outputs are represented as a new model/adapter run.
+`docs/original-sha256.json` fingerprints original33tests, baseline/candidate JSONL, demo and README. README is archived as original-readme.md. The original baseline source, original CLI analysis and original HTML remain visible and are reproduced by the updated analyzer/renderer on the original valid fixture (the archived HTML adds one final newline for web-editor storage; rendered content is unchanged). The original demo remains unchanged. No outputs are represented as a new model/adapter run.
 
 ## Bounded inspector schema
 
