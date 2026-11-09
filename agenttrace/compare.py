@@ -77,7 +77,7 @@ def _metrics(result: AnalysisResult) -> dict[str, float]:
 
 def _pct_change(baseline: float, delta: float) -> float | None:
     if baseline == 0:
-        return None if delta == 0 else float("inf")
+        return None
     return delta / baseline * 100
 
 
@@ -91,6 +91,9 @@ def compare_results(
     max_cost_increase_pct: float | None = None,
     max_repeat_increase: int | None = None,
 ) -> CompareResult:
+    import math
+    for key,value,integer in [('max_new_errors',max_new_errors,True),('max_step_increase_pct',max_step_increase_pct,False),('max_p95_increase_ms',max_p95_increase_ms,False),('max_cost_increase_pct',max_cost_increase_pct,False),('max_repeat_increase',max_repeat_increase,True)]:
+        if value is not None and (isinstance(value,bool) or not isinstance(value,(int,float)) or (integer and not isinstance(value,int)) or not math.isfinite(value) or value<0):raise ValueError(key+' must be finite, nonnegative and correctly typed')
     before = _metrics(baseline)
     after = _metrics(candidate)
     deltas = tuple(
@@ -104,7 +107,7 @@ def compare_results(
         for metric in _METRIC_ORDER
     )
     by_metric = {delta.metric: delta for delta in deltas}
-    failures: list[str] = []
+    failures: list[str] = [f"{side} trace invalid: {issue}" for side,r in [("baseline",baseline),("candidate",candidate)] for issue in r.issues]
     if by_metric["errors"].delta > max_new_errors:
         failures.append(f"new errors increased by {by_metric['errors'].delta:g} (> {max_new_errors})")
     step_delta = by_metric["steps"]
