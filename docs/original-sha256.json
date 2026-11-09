@@ -1,0 +1,11 @@
+{
+  "README.md": "ab59af2769fb50af05ab4213f42a134c741c740e31b248601d4aa6225e00a1da",
+  "examples/demo.sh": "522e3028f39f207b0697f94b3c9c09cc8936c36d21cca73a33b6b637efe5602a",
+  "examples/trace.jsonl": "0814a72db81b1823d9e146673e238069c09dbbde334ba8749ea07240b65d2d9c",
+  "examples/trace_candidate.jsonl": "0736e3e52c8ac27473b33e211cdbef893eb6478e1fd5bb12a0138494e977e680",
+  "tests/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+  "tests/test_analysis.py": "13045cb87f4f5cbb8cd6e67a1f87f34cd04aad3d4765e7d677453c7849711c06",
+  "tests/test_cli.py": "56bc26ef4e21ed2740e8c485dbf77aed0bc812195163b266a6b035327ed26911",
+  "tests/test_compare.py": "6126aca8b19a679cfc4bc4f54199205380f10e29f0f91fa11330b4f8ef589d80",
+  "tests/test_parser.py": "2daace103a910a18c5f9718d1e78acb0cf24161eff227cd6bad33260c47c8539"
+}

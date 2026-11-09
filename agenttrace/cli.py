@@ -15,7 +15,7 @@ from .report import render_junit, render_markdown, render_report, render_sarif
 def _load(path: str):
     try:
         return load_trace(path)
-    except OSError as exc:
+    except (OSError, UnicodeError) as exc:
         raise SystemExit(f"agenttrace: cannot read {path}: {exc}")
 
 
@@ -122,9 +122,21 @@ def cmd_compare(args) -> int:
     return 0 if not baseline.issues and not candidate.issues else 1
 
 
+def cmd_audit(args):
+    from .audit import load_spec,audit_trace
+    payload=audit_trace(load_spec(args.spec))
+    Path(args.out).write_text(json.dumps(payload,indent=2,sort_keys=True,allow_nan=False)+'\n')
+    print(f"audited {len(payload['records'])} supplied records; parent paths are not causal critical paths")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="agenttrace", description="Validate, analyze and report AI agent traces.")
     sub = parser.add_subparsers(dest="command", required=True)
+    audit = sub.add_parser('audit',help='export bounded full-record graph/timing witnesses')
+    audit.add_argument('--spec',required=True)
+    audit.add_argument('--json',dest='out',required=True)
+    audit.set_defaults(func=cmd_audit)
     validate = sub.add_parser("validate", help="validate a JSONL trace")
     validate.add_argument("trace")
     validate.set_defaults(func=cmd_validate)
@@ -165,7 +177,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (ValueError,OverflowError) as exc:
+        print(f"agenttrace: {exc}",file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

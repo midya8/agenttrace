@@ -1,97 +1,59 @@
 # AgentTrace
 
-Local-first validation, analysis, and CI-friendly reporting for AI agent execution traces.
+Local-first validation, analysis and reporting for AI agent traces, now with complete graph/timing evidence.
 
-AgentTrace reads JSONL agent traces, checks their structure, summarizes every run, detects repeated tool/action loops, tracks failures, latency, tokens and cost, enforces CI-friendly gates, and renders standalone HTML, JUnit XML, SARIF and Markdown job-summary reports. It is dependency-free and works offline, so it can inspect traces from local agents, test fixtures, internal tools, or hosted model adapters without sending prompts or outputs anywhere.
+[Open the timing inspector](https://midya8.github.io/agenttrace/) · [Definitions and prior work](EVIDENCE.md) · [Original README](docs/original-readme.md)
 
-## Why
+## A parent is not a stopwatch
 
-Agent frameworks are good at showing a friendly final answer and bad at preserving the operational truth of how it got there. AgentTrace keeps that truth in a portable record:
+Summing overlapping event durations is not elapsed time. A parent link is not proof of a finish-to-start dependency. AgentTrace now exposes every interval transition, active set, coverage segment, parent path, parent/child time relation and p95 interpolation term in an independently recomputed browser.
 
-- every LLM call, tool call, action, observation and error is one JSONL event;
-- every run can be validated before analysis;
-- loops and repeated calls are detected from kind, name and normalized input;
-- errors, p95 step latency, run depth, token totals and cost are explicit;
-- thresholds turn trace review into a scriptable quality gate;
-- baseline/candidate comparison gates catch new errors, runaway steps, loops, p95 latency and cost regressions;
-- escaped HTML reports make the run reviewable without a server, JavaScript bundle, or external service; JUnit XML exposes the same quality gate to CI test viewers, SARIF maps validation and gate failures to code-scanning tools, and Markdown fits native CI job summaries.
+The original standard-library JSONL validator/analyzer, loop/error/token/cost summaries, configurable gates and standalone HTML/JUnit/Markdown/SARIF reports remain. The included five-step baseline and candidate are fixed synthetic fixtures, not model/API measurements.
 
-## Trace format
-
-Each line is one JSON object. Required fields are `run_id`, `step`, `kind` and `name`.
-
-```json
-{"run_id":"research-demo","step":"search","parent":"plan","kind":"tool","name":"repo.search","status":"ok","started_at":"2026-11-07T05:00:00.200Z","duration_ms":95,"input":{"query":"evaluation harness"},"output":{"matches":8}}
-```
-
-Supported `kind` values are `llm`, `tool`, `action`, `observation` and `error`. Supported statuses are `ok`, `failed`, `cancelled` and `timeout`. Optional numeric fields are `duration_ms`, `tokens_input`, `tokens_output` and `cost_usd`; optional payloads are `input` and `output`; `parent` links a step to an earlier step in the same run.
-
-## Commands
-
-Validate a trace:
+## Run
 
 ```bash
-python3 -m agenttrace validate examples/trace.jsonl
-```
-
-Analyze runs and write a JSON summary:
-
-```bash
-python3 -m agenttrace analyze examples/trace.jsonl --json analysis.json --junit analysis.xml --markdown analysis.md
-```
-
-Enforce quality gates:
-
-```bash
-python3 -m agenttrace analyze examples/trace.jsonl \
-  --fail-on-error \
-  --max-loop-repeat 3 \
-  --max-p95-ms 500 \
-  --max-cost-usd 0.01 \
-  --max-steps 10
-```
-
-Render a standalone report:
-
-```bash
-python3 -m agenttrace report examples/trace.jsonl --out report.html
-```
-
-Compare a candidate run against a saved baseline and fail on regressions:
-
-```bash
-python3 -m agenttrace compare examples/trace.jsonl examples/trace_candidate.jsonl \
-  --max-new-errors 0 \
-  --max-p95-increase-ms 100 \
-  --max-cost-increase-pct 50 \
-  --json compare.json
-```
-
-Comparison output includes absolute and percentage deltas for runs, steps, errors, tool and LLM calls, repeated signatures, p95 latency, tokens and cost. It exits 1 when a configured regression gate fails, so it can protect an agent change in CI without calling a model.
-
-## Offline demo
-
-The demo uses a fixed local trace fixture. It demonstrates validation, analysis, gates, HTML reporting, JUnit XML, SARIF and Markdown generation without any model/API call:
-
-```bash
+python -m agenttrace validate examples/trace.jsonl
+python -m agenttrace analyze examples/trace.jsonl --json analysis.json \
+  --junit analysis.xml --markdown analysis.md --sarif analysis.sarif \
+  --fail-on-error --max-loop-repeat 3 --max-p95-ms 500 --max-cost-usd .01 --max-steps 10
+python -m agenttrace report examples/trace.jsonl --out report.html
+python -m agenttrace compare examples/trace.jsonl examples/trace_candidate.jsonl \
+  --json comparison.json --max-new-errors 0 --max-p95-increase-ms 100
+python -m agenttrace audit --spec examples/audit.json --json audit.json
 bash examples/demo.sh
 ```
 
-The fixtures currently cover a five-step baseline agent run and a slightly slower candidate run with planning, two tool calls, writing and a final observation. Their timing and cost numbers are fixture data, not evidence about a real model.
+Events require run_id/step/kind/name. Kinds: llm/tool/action/observation/error; statuses: ok/failed/cancelled/timeout. Optional parent, ISO started_at, nonnegative duration_ms/cost_usd, integer tokens_input/tokens_output, arbitrary input/output payloads. Parent references may arrive out of order, but must resolve inside the same run and form an acyclic forest. A root has parent=null or omitted. Native parser issues retain source line numbers; duplicate step records remain visible but invalidate graph analysis. Duplicate JSON keys and nonfinite JSON tokens are rejected; known numeric fields must be finite. This is structural validation, not provenance/authenticity or a general arbitrary-payload schema.
 
-## Development
+Mixed present/missing timestamps no longer crash sorting. Iterative graph depth handles deep chains without recursion. Parser/graph issues now make analysis JSON ok=false and comparison gates fail, matching the CLI's existing nonzero behavior on invalid traces. Invalid numeric gate options are rejected. A zero-baseline percentage change is undefined/null rather than nonstandard Infinity JSON; positive growth still fails a configured percentage limit. The default loop gate and error/latency/cost/size choices remain configurable. Loop signatures are repeated normalized kind/name/input, not proof of an actual control-flow cycle.
+
+## Inspect every witness
+
+Edit the entire events list and inspect each run:
+
+- **Time:** step-duration sum versus first-to-last recorded span, union coverage, uncovered span, overlap excess and peak recorded spans. Every half-open endpoint transition and constant-active segment is retained. Ends are removed before starts; zero-duration events are points, never active intervals. Unknown timestamps remain unknown and coverage is explicitly partial.
+- **Structure:** iterative topological order, roots, every root-to-step path and depth. Path-duration sums can double-count nested spans and are never called a critical path. Parent/child time relations are exposed, not silently repaired or automatically classified as errors.
+- **Tail:** every sorted duration and the original linear p95 rank, neighbors, weight and result. This is a convention, not nearest rank, uncertainty or predicted runtime.
+
+The shared per-run timeline uses relative milliseconds on one fixed axis. Every timed mark and untimed row remains visible; full normalized records preserve supplied payloads and source sequence. Text rendering prevents model/trace payloads becoming HTML. Edits hide stale results and disable export until recomputed. JSON export is the actual current complete report.
+
+Clock agreement and instrumentation coverage are assumptions. Busy union is not CPU busy time; uncovered span is not proven idle time; peak spans is not core/worker utilization; overlap is not wasted work. Parent context is not a causal dependency graph. No automatic bottleneck diagnosis, causal critical path, latency prediction or quality claim is made.
+
+## Verification
+
+All 33 original tests, baseline/candidate traces and demo are byte-preserved and fingerprinted. Original README, original analysis, trace and HTML report stay visible. Original analysis/report reproduction is checked.
+
+- 57 Python tests on 3.10-3.13. All 11,110 interval lists of lengths 1..4 on a four-point integer grid are checked against separate unit-cell coverage/concurrency, including zeros; 5,000-deep chains, cycles, forward references, mixed timestamps, nonfinite/duplicate input, invalid status/gates and p95 controls.
+- 24 complete reports independently compared in JavaScript at all 2,060 numeric and 2,463 other scalar leaves.
+- Actual Chrome verifies all 26 runs, 118 endpoint rows, 93 segments, 85 paths/full displayed records, 32 parent-time relations, 81 timeline marks, p95 rows, export/invalidation and 320/390/1280 containment.
+- Isolated installed wheel outside the checkout verifies eleven module origins, every report and audit/validate/analyze/report/compare CLI with JSON/HTML/JUnit/Markdown/SARIF.
+
+Browser audit bounds are 16 events/four runs, integer durations <=1,000,000ms, tokens <=1,000,000, six-decimal costs in [0,1], restricted UTC timestamps (2000..2100) and bounded ASCII/integer payloads. Native analysis has broader input limits. Same-environment byte regeneration is not universal cross-platform determinism. See [EVIDENCE.md](EVIDENCE.md).
 
 ```bash
-python3 -m unittest discover -s tests -v
-bash examples/demo.sh
+python -m unittest discover -s tests -v
+python tools/build_audits.py
+npm test
+bash tools/wheel_smoke.sh
 ```
-
-The test suite runs fully offline. CI runs the same checks on Python 3.10 through 3.13.
-
-## Design notes
-
-- **Portable input:** JSONL is easy for agents and test harnesses to append and for Unix tools to inspect.
-- **Validation first:** malformed events, duplicate step IDs, unknown parents, negative numbers, unknown event types and bad timestamps are reported before analysis is trusted.
-- **Loop detection:** repeated signatures use event kind, name and normalized input payload, so retries with changed arguments do not count as the same loop.
-- **Reviewable output:** the HTML report escapes untrusted trace payloads, needs no JavaScript, and can be archived with the run; JUnit XML gives CI a conventional test report; SARIF exposes validation and gate findings to code-scanning tools; Markdown gives the same status a native job-summary format.
-- **Scriptable gates:** meaningful exit codes let CI fail on agent errors, loops, high latency, high cost, oversized runs or regressions against a saved baseline.

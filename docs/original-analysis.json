@@ -1,0 +1,33 @@
+{
+  "gate_failures": [],
+  "issues": [],
+  "ok": true,
+  "runs": [
+    {
+      "cost_usd": 0.0045,
+      "duration_ms": 577.0,
+      "errors": 0,
+      "llm_calls": 2,
+      "max_depth": 5,
+      "max_repeat": 1,
+      "p95_step_ms": 212.0,
+      "repeated_signatures": 0,
+      "run_id": "research-demo",
+      "steps": 5,
+      "tokens_input": 1120,
+      "tokens_output": 440,
+      "tool_calls": 2
+    }
+  ],
+  "schema_version": 1,
+  "totals": {
+    "cost_usd": 0.0045,
+    "errors": 0,
+    "llm_calls": 2,
+    "runs": 1,
+    "steps": 5,
+    "tokens_input": 1120,
+    "tokens_output": 440,
+    "tool_calls": 2
+  }
+}

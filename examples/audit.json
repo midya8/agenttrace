@@ -1,0 +1,31 @@
+{
+  "events": [
+    {
+      "duration_ms": 100,
+      "kind": "tool",
+      "name": "fixture",
+      "parent": null,
+      "run_id": "r",
+      "started_at": "2026-11-07T00:00:00.000Z",
+      "step": "parent"
+    },
+    {
+      "duration_ms": 60,
+      "kind": "tool",
+      "name": "fixture",
+      "parent": "parent",
+      "run_id": "r",
+      "started_at": "2026-11-07T00:00:00.010Z",
+      "step": "a"
+    },
+    {
+      "duration_ms": 50,
+      "kind": "tool",
+      "name": "fixture",
+      "parent": "parent",
+      "run_id": "r",
+      "started_at": "2026-11-07T00:00:00.030Z",
+      "step": "b"
+    }
+  ]
+}

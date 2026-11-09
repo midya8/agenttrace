@@ -1,0 +1,5 @@
+{"run_id":"research-demo","step":"plan","parent":null,"kind":"llm","name":"planner","status":"ok","started_at":"2026-11-07T05:00:00Z","duration_ms":180,"tokens_input":420,"tokens_output":180,"cost_usd":0.0018,"input":{"goal":"summarize a repository"},"output":{"steps":3}}
+{"run_id":"research-demo","step":"search","parent":"plan","kind":"tool","name":"repo.search","status":"ok","started_at":"2026-11-07T05:00:00.200Z","duration_ms":95,"input":{"query":"evaluation harness"},"output":{"matches":8}}
+{"run_id":"research-demo","step":"read","parent":"search","kind":"tool","name":"repo.read","status":"ok","started_at":"2026-11-07T05:00:00.320Z","duration_ms":70,"input":{"path":"README.md"},"output":{"lines":154}}
+{"run_id":"research-demo","step":"draft","parent":"read","kind":"llm","name":"writer","status":"ok","started_at":"2026-11-07T05:00:00.420Z","duration_ms":220,"tokens_input":700,"tokens_output":260,"cost_usd":0.0027,"input":{"matches":8},"output":{"summary":"done"}}
+{"run_id":"research-demo","step":"observe","parent":"draft","kind":"observation","name":"final","status":"ok","started_at":"2026-11-07T05:00:00.660Z","duration_ms":12,"output":{"ready":true}}
