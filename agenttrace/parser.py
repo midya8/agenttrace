@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -13,6 +14,13 @@ def _number(record: dict[str, Any], key: str, default: float, issues: list[str],
     value = record.get(key, default)
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         issues.append(f"line {line}: {key} must be a number")
+        return default
+    try:
+        finite = math.isfinite(value)
+    except OverflowError:
+        finite = False
+    if not finite:
+        issues.append(f"line {line}: {key} must be finite")
         return default
     if value < 0:
         issues.append(f"line {line}: {key} must be non-negative")
@@ -38,18 +46,26 @@ def parse_lines(lines: Iterable[str]) -> TraceData:
     ids_by_run: dict[str, set[str]] = {}
     pending: list[TraceStep] = []
 
+    source_lines = []
+    def unique(items):
+        d={}
+        for k,v in items:
+            if k in d:raise ValueError("duplicate JSON key")
+            d[k]=v
+        return d
+
     for line_no, raw in enumerate(lines, 1):
         if not raw.strip():
             continue
         try:
-            record = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            issues.append(f"line {line_no}: invalid JSON: {exc.msg}")
+            record = json.loads(raw, object_pairs_hook=unique, parse_constant=lambda v: (_ for _ in ()).throw(ValueError("nonfinite JSON token")))
+        except ValueError as exc:
+            issues.append(f"line {line_no}: invalid JSON: {getattr(exc,'msg',str(exc))}")
             continue
         if not isinstance(record, dict):
             issues.append(f"line {line_no}: trace event must be a JSON object")
             continue
-        missing = [key for key in _REQUIRED if not isinstance(record.get(key), str) or not record.get(key)]
+        missing = [key for key in _REQUIRED if not isinstance(record.get(key), str) or not record.get(key).strip()]
         if missing:
             issues.append(f"line {line_no}: missing required field(s): {', '.join(missing)}")
             continue
@@ -59,7 +75,7 @@ def parse_lines(lines: Iterable[str]) -> TraceData:
         status = record.get("status", "ok")
         if kind not in VALID_KINDS:
             issues.append(f"line {line_no}: unknown kind {kind!r}")
-        if status not in VALID_STATUSES:
+        if not isinstance(status,str) or status not in VALID_STATUSES:
             issues.append(f"line {line_no}: unknown status {status!r}")
         started_at = record.get("started_at")
         if started_at is not None and (not isinstance(started_at, str) or parse_time(started_at) is None):
@@ -70,7 +86,7 @@ def parse_lines(lines: Iterable[str]) -> TraceData:
         seen.add((run_id, step_id))
         ids_by_run.setdefault(run_id, set()).add(step_id)
         parent = record.get("parent")
-        if parent is not None and not isinstance(parent, str):
+        if parent is not None and (not isinstance(parent, str) or not parent.strip()):
             issues.append(f"line {line_no}: parent must be a string or null")
             parent = None
         duration_ms = _number(record, "duration_ms", 0, issues, line_no)
@@ -92,10 +108,14 @@ def parse_lines(lines: Iterable[str]) -> TraceData:
             sequence=len(pending),
         )
         pending.append(step)
+        source_lines.append(line_no)
 
-    for step in pending:
+    for step, source_line in zip(pending,source_lines):
         if step.parent and step.parent not in ids_by_run.get(step.run_id, set()):
-            issues.append(f"line {step.sequence + 1}: unknown parent {step.parent!r} in run {step.run_id!r}")
+            issues.append(f"line {source_line}: unknown parent {step.parent!r} in run {step.run_id!r}")
+    from .graph import graph_evidence
+    _, graph_issues = graph_evidence(pending)
+    issues.extend(i for i in graph_issues if "cyclic" in i)
     steps.extend(pending)
     return TraceData(tuple(steps), tuple(issues))
 
