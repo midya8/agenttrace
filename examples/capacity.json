@@ -1,0 +1,23 @@
+{
+  "capacity": 1,
+  "intervals": [
+    {
+      "id": "span_0",
+      "start": 0,
+      "end": 4,
+      "drop_penalty": 9
+    },
+    {
+      "id": "span_1",
+      "start": 0,
+      "end": 2,
+      "drop_penalty": 6
+    },
+    {
+      "id": "span_2",
+      "start": 2,
+      "end": 4,
+      "drop_penalty": 6
+    }
+  ]
+}
