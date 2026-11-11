@@ -57,3 +57,7 @@ python tools/build_audits.py
 npm test
 bash tools/wheel_smoke.sh
 ```
+
+## Hypothetical capacity policy (0.2)
+
+[Inspect fixed-interval retention](https://midya8.github.io/agenttrace/capacity.html) and read [CAPACITY.md](CAPACITY.md). A separate bounded optimizer minimizes supplied dropped penalties under a declared overlap cap, with exact integral min-cost-flow/primal-dual witnesses and an independent full-subset browser reference. It never deletes trace records or infers workers, dependencies or counterfactual runtime. The original analyzer and gates remain unchanged.
