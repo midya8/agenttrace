@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, agenttrace-capacity-policy]
   pull_request:
 
 jobs:
@@ -25,6 +25,8 @@ jobs:
         run: |
           python tools/build_audits.py
           git diff --exit-code -- docs/audit.json examples/audit.json
+          python tools/build_capacity.py
+          git diff --exit-code -- examples/capacity.json examples/capacity-reports.json docs/capacity-data.js
   browser:
     runs-on: ubuntu-latest
     steps:
@@ -41,3 +43,4 @@ jobs:
         with:
           python-version: '3.12'
       - run: bash tools/wheel_smoke.sh
+      - run: bash tools/capacity_wheel_smoke.sh
