@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agenttrace"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local-first validation, analysis and HTML reporting for AI agent traces"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,3 +26,4 @@ Homepage = "https://github.com/midya8/agenttrace"
 
 [project.scripts]
 agenttrace = "agenttrace.cli:main"
+agenttrace-capacity = "agenttrace.capacity_cli:main"
