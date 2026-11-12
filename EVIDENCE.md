@@ -1,4 +1,8 @@
-# AgentTrace graph/timing evidence
+# AgentTrace timing notes
+
+The timing inspector recomputes supplied records. These notes define its
+interval, parent-graph and percentile rules, the native validation fixes and
+the checks behind each displayed result.
 
 ## Meaning before arithmetic
 
@@ -29,19 +33,19 @@ Original parser accepted nonfinite known numbers and JSON constants, mixed missi
 
 Comparison percentage change from zero is undefined/null, replacing nonstandard Infinity JSON. Positive increase still fails a configured percent bound. Gate defaults and valid-trace metrics are preserved; analysis/compare CLI choices are not inferred from the inspector. Invalid numeric gate options fail rather than silently disabling checks. Native input validation is not a direct-TraceStep object sanitizer.
 
-`docs/original-sha256.json` fingerprints original33tests, baseline/candidate JSONL, demo and README. README is archived as original-readme.md. The original baseline source, original CLI analysis and original HTML remain visible and are reproduced by the updated analyzer/renderer on the original valid fixture (the archived HTML adds one final newline for web-editor storage; rendered content is unchanged). The original demo remains unchanged. No outputs are represented as a new model/adapter run.
+`docs/original-sha256.json` fingerprints original 33 tests, baseline/candidate JSONL, demo and README. README is archived as original-readme.md. The original baseline source, original CLI analysis and original HTML remain visible and are reproduced by the updated analyzer/renderer on the original valid fixture (the archived HTML adds one final newline for web-editor storage; rendered content is unchanged). The original demo remains unchanged. No outputs are represented as a new model/adapter run.
 
 ## Bounded inspector schema
 
-Exactly one root field events, <=16 event objects and <=4 runs. Only the existing event fields run_id/step/parent/kind/name/status/started_at/duration_ms/tokens_input/tokens_output/cost_usd/input/output are allowed; unknown fields are rejected rather than silently discarded. Required ids/name are nonblank printable ASCII <=64 characters, parent is null/omitted or a nonblank id. Valid original kinds/statuses apply. Durations are integer milliseconds 0..1,000,000; tokens integers 0..1,000,000; cost in [0,1] on a micro-dollar grid (absolute scaled tolerance1e-8). UTC timestamps are YYYY-MM-DDTHH:MM:SSZ or three-digit .sssZ, years2000..2100 with actual calendar validation. Native ISO parsing is broader.
+Exactly one root field events, <=16 event objects and <=4 runs. Only the existing event fields run_id/step/parent/kind/name/status/started_at/duration_ms/tokens_input/tokens_output/cost_usd/input/output are allowed; unknown fields are rejected rather than silently discarded. Required ids/name are nonblank printable ASCII <=64 characters, parent is null/omitted or a nonblank id. Valid original kinds/statuses apply. Durations are integer milliseconds 0..1,000,000; tokens integers 0..1,000,000; cost in [0,1] on a micro-dollar grid (absolute scaled tolerance 1e-8). UTC timestamps are YYYY-MM-DDTHH:MM:SSZ or three-digit .sssZ, years 2000..2100 with actual calendar validation. Native ISO parsing is broader.
 
 Payloads are null/Boolean, integer magnitude<=1,000,000, bounded printable ASCII strings<=512, arrays/objects<=16 items at each level and depth<=4. Object keys<=64. Text permits tab/newline/CR. Payload numbers are integers, avoiding cross-language decimal signature ambiguity. Audit files <=128KiB reject duplicate keys and nonfinite tokens; UI JSON parsers do not claim duplicate-key detection. Source spec is retained alongside complete normalized records, source sequence and converted start_ms. Unknown timestamps stay null. Export is the recomputed current report, never a retained default disguised as current output.
 
 ## Independent verification
 
-All 11,110 interval lists of lengths1..4 from the ten nonnegative intervals on endpoints0..3 (including zero intervals) are compared to separate unit-cell counting: union, peak, weighted sum and span. Full retained controls cover original data, nested spans, touching endpoints, gaps, zero points, mixed/all-missing timestamps, forward parent order, noncontained children, multiple roots/runs, p95 ties/interpolation, errors, escaped payloads and maximal chains/concurrency. A 5,000-deep native graph verifies no recursion dependence.
+All 11,110 interval lists of lengths 1..4 from the ten nonnegative intervals on endpoints 0..3 (including zero intervals) are compared to separate unit-cell counting: union, peak, weighted sum and span. Full retained controls cover original data, nested spans, touching endpoints, gaps, zero points, mixed/all-missing timestamps, forward parent order, noncontained children, multiple roots/runs, p95 ties/interpolation, errors, escaped payloads and maximal chains/concurrency. A 5,000-deep native graph verifies no recursion dependence.
 
-All 24 full reports match an independent scalar JavaScript implementation at 2,060 numeric/2,463 other leaves. Actual Chrome reads every run's endpoint/segment/path/relation/p95 table and complete record, checks every timeline mark's id/data/position, summary quantities, stale-state/export and 320/390/1280 containment. No image replaces computed evidence. Isolated installed-wheel checks run outside the checkout, verify eleven module origins and all reports, then exercise all CLI modes and JSON/HTML/JUnit/Markdown/SARIF reports. CI runs Python3.10-3.13 and actual Chrome. Same-environment regeneration is not an all-platform determinism promise.
+All 24 full reports match an independent scalar JavaScript implementation at 2,060 numeric/2,463 other leaves. Actual Chrome reads every run's endpoint/segment/path/relation/p95 table and complete record, checks every timeline mark's id/data/position, summary quantities, stale-state/export and 320/390/1280 containment. No image replaces computed evidence. Isolated installed-wheel checks run outside the checkout, verify eleven module origins and all reports, then exercise all CLI modes and JSON/HTML/JUnit/Markdown/SARIF reports. CI runs Python 3.10-3.13 and actual Chrome. Same-environment regeneration is not an all-platform determinism promise.
 
 ## Sources and prior work
 
@@ -54,4 +58,4 @@ Parent spans, interval sweeps and linear quantiles are established. This work co
 - [Sweep-line explanation](https://dsa.handbook.academy/patterns/sweep-line-archetypes/): active sets change at endpoints and are constant between them.
 - [Jaeger clock precision issue](https://github.com/jaegertracing/jaeger-client-java/issues/192): clock/start-time precision and duration measurement can create misleading span relations. Historical implementation discussion, not a claim about all current SDKs.
 
-Read November8,2026. These sources support definitions/cautions, not evidence that synthetic traces reflect real application behavior.
+Read November 8, 2026. These sources support definitions/cautions, not evidence that synthetic traces reflect real application behavior.
