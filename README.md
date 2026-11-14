@@ -73,8 +73,15 @@ bash tools/wheel_smoke.sh
 
 [Inspect fixed-interval retention](https://midya8.github.io/agenttrace/capacity.html) and read [CAPACITY.md](CAPACITY.md). A separate bounded optimizer minimizes supplied penalties for dropped intervals under a declared overlap cap, with exact integral min-cost-flow/primal-dual witnesses and an independent full-subset browser reference. It never deletes trace records or infers workers, dependencies or counterfactual runtime. The original analyzer and gates remain unchanged.
 
-The current suite has 64 Python tests and seven Node/actual-Chrome tests,
+The current suite has 67 Python tests and seven Node/actual-Chrome tests,
 including the earlier timing checks. The capacity experiment has its own
 schema, native CLI and installed-wheel check. It does not cancel work or change
 the original trace. Full numeric checks, bounds and source distinctions are in
 [CAPACITY.md](CAPACITY.md).
+
+Capacity regressions compare 45 complete reports after positive affine time
+changes and 100 frontier choices under positive penalty scaling. These finite
+checks preserve half-open intervals and the declared input-position tie policy.
+An equal-penalty reorder control shows that changing input order can change the
+named winner without changing its retained penalty. No new scheduling or runtime
+claim is made.
